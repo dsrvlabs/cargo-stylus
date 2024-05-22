@@ -52,7 +52,17 @@ struct Binary<'a> {
 const COMMANDS: &[Binary] = &[
     Binary {
         name: "cargo-stylus-check",
-        apis: &["new", "export-abi", "check", "deploy", "n", "x", "c", "d"],
+        apis: &[
+            "new",
+            "export-abi",
+            "check",
+            "deploy",
+            "n",
+            "x",
+            "c",
+            "d",
+            "a",
+        ],
         rust_flags: None,
     },
     Binary {

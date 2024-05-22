@@ -1,6 +1,7 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
+use crate::deploy::TxKind;
 use crate::{
     check::ArbWasm::ArbWasmErrors,
     constants::{ARB_WASM_H160, ONE_ETH},
@@ -21,6 +22,7 @@ use ethers::{
 };
 use eyre::{bail, eyre, ErrReport, Result, WrapErr};
 use serde_json::Value;
+use std::io::Write;
 use std::path::PathBuf;
 
 sol! {
@@ -60,6 +62,21 @@ pub async fn check(cfg: &CheckConfig) -> Result<ProgramCheck> {
     }
 
     let (wasm, code) = project::compress_wasm(&wasm).wrap_err("failed to compress WASM")?;
+    let mut tx_code = code.clone();
+    let mut init_code = Vec::with_capacity(42 + tx_code.len());
+    init_code.push(0x7f); // PUSH32
+    init_code.extend(U256::from(tx_code.len()).to_be_bytes::<32>());
+    init_code.push(0x80); // DUP1
+    init_code.push(0x60); // PUSH1
+    init_code.push(0x2a); // 42 the prelude length
+    init_code.push(0x60); // PUSH1
+    init_code.push(0x00);
+    init_code.push(0x39); // CODECOPY
+    init_code.push(0x60); // PUSH1
+    init_code.push(0x00);
+    init_code.push(0xf3); // RETURN
+    init_code.extend(tx_code);
+    write_tx_data(TxKind::Deployment, &init_code)?;
 
     greyln!("contract size: {}", format_file_size(code.len(), 16, 24));
 
@@ -231,4 +248,21 @@ async fn check_activate(code: Bytes, address: H160, provider: &Provider<Http>) -
         ArbWasm::activateProgramCall::abi_decode_returns(&outs, true)?;
 
     Ok(dataFee)
+}
+
+fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> eyre::Result<()> {
+    let file_name = format!("{tx_kind}_tx_data");
+    let mut path = PathBuf::new();
+    path.push("./output");
+    path = path.join(file_name);
+    let path_str = path.as_os_str().to_string_lossy();
+    println!(
+        "Writing {tx_kind} tx data bytes of size {} to path {}",
+        data.len().mint(),
+        path_str.grey(),
+    );
+    let mut f = std::fs::File::create(&path)
+        .map_err(|e| eyre!("could not create file to write tx data to path {path_str}: {e}",))?;
+    f.write_all(data)
+        .map_err(|e| eyre!("could not write tx data as bytes to file to path {path_str}: {e}"))
 }

@@ -1,12 +1,14 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
+use crate::macros::greyln;
 use clap::{ArgGroup, Args, Parser};
 use ethers::types::H160;
 use eyre::{eyre, Context, Result};
 use std::path::PathBuf;
 use tokio::runtime::Builder;
 
+mod activate;
 mod check;
 mod constants;
 mod deploy;
@@ -54,6 +56,9 @@ enum Apis {
     /// Deploy a contract.
     #[command(alias = "d")]
     Deploy(DeployConfig),
+    /// Deploy a contract.
+    #[command(alias = "a")]
+    Activate(ActivateConfig),
 }
 
 #[derive(Args, Clone, Debug)]
@@ -76,6 +81,12 @@ struct CheckConfig {
 }
 
 #[derive(Args, Clone, Debug)]
+struct ActivateConfig {
+    #[arg(long)]
+    contract_address: Option<H160>,
+}
+
+#[derive(Args, Clone, Debug)]
 struct DeployConfig {
     #[command(flatten)]
     check_config: CheckConfig,
@@ -85,6 +96,8 @@ struct DeployConfig {
     /// Only perform gas estimation.
     #[arg(long)]
     estimate_gas: bool,
+    #[command(flatten)]
+    tx_sending_opts: TxSendingOpts,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -102,6 +115,20 @@ struct AuthOpts {
     /// Keystore password file.
     #[arg(long)]
     keystore_password_path: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub struct TxSendingOpts {
+    /// Prepares transactions to send onchain for deploying and activating a Stylus program,
+    /// but does not send them. Instead, outputs the prepared tx data hex bytes to files in the directory
+    /// specified by the --output-tx-data-to-dir flag. Useful for sending the deployment / activation
+    /// txs via a user's preferred means instead of via the Cargo stylus tool. For example, Foundry's
+    /// https://book.getfoundry.sh/cast/ CLI tool.
+    #[arg(long)]
+    dry_run: bool,
+    /// Outputs the deployment / activation tx data as bytes to a specified directory.
+    #[arg(long)]
+    output_tx_data_to_dir: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -129,6 +156,9 @@ async fn main_impl(args: Opts) -> Result<()> {
         }
         Apis::Deploy(config) => {
             run!(deploy::deploy(config).await, "failed to deploy");
+        }
+        Apis::Activate(config) => {
+            run!(activate::activate(config).await, "failed to activate");
         }
     }
     Ok(())

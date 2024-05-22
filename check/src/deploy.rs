@@ -25,6 +25,22 @@ use ethers::{
     types::{transaction::eip2718::TypedTransaction, Eip1559TransactionRequest, H160, U256, U64},
 };
 use eyre::{bail, eyre, Result, WrapErr};
+use std::io::Write;
+use std::path::PathBuf;
+
+pub enum TxKind {
+    Deployment,
+    Activation,
+}
+
+impl std::fmt::Display for TxKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            TxKind::Deployment => write!(f, "deployment"),
+            TxKind::Activation => write!(f, "activation"),
+        }
+    }
+}
 
 sol! {
     interface ArbWasm {
@@ -115,6 +131,7 @@ impl DeployConfig {
         init_code.push(0xf3); // RETURN
         init_code.extend(code);
 
+        write_tx_data(TxKind::Deployment, &init_code)?;
         let tx = Eip1559TransactionRequest::new()
             .from(sender)
             .data(init_code);
@@ -161,6 +178,7 @@ impl DeployConfig {
         let program: Address = contract.to_fixed_bytes().into();
 
         let data = ArbWasm::activateProgramCall { program }.abi_encode();
+        write_tx_data(TxKind::Activation, &data)?;
 
         let tx = Eip1559TransactionRequest::new()
             .from(sender)
@@ -221,4 +239,21 @@ fn format_gas(gas: U256) -> String {
     } else {
         text.pink()
     }
+}
+
+fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> eyre::Result<()> {
+    let file_name = format!("{tx_kind}_tx_data");
+    let mut path = PathBuf::new();
+    path.push("./output");
+    path = path.join(file_name);
+    let path_str = path.as_os_str().to_string_lossy();
+    println!(
+        "Writing {tx_kind} tx data bytes of size {} to path {}",
+        data.len().mint(),
+        path_str.grey(),
+    );
+    let mut f = std::fs::File::create(&path)
+        .map_err(|e| eyre!("could not create file to write tx data to path {path_str}: {e}",))?;
+    f.write_all(data)
+        .map_err(|e| eyre!("could not write tx data as bytes to file to path {path_str}: {e}"))
 }
