@@ -2,7 +2,6 @@
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
 use alloy_primitives::{address, Address};
-use bytesize::ByteSize;
 use ethers::types::{H160, U256};
 use lazy_static::lazy_static;
 
@@ -15,19 +14,15 @@ pub const BROTLI_COMPRESSION_LEVEL: u32 = 11;
 lazy_static! {
     /// Address of the ArbWasm precompile.
     pub static ref ARB_WASM_H160: H160 = H160(*ARB_WASM_ADDRESS.0);
+    /// Address of the Stylus program cache manager.
+    pub static ref CACHE_MANAGER_H160: H160 = H160(*CACHE_MANAGER_ADDRESS.0);
 }
 
 /// Address of the ArbWasm precompile.
 pub const ARB_WASM_ADDRESS: Address = address!("0000000000000000000000000000000000000071");
 
-/// Maximum allowed size of a program on Arbitrum (and Ethereum).
-pub const MAX_PROGRAM_SIZE: ByteSize = ByteSize::kb(24);
-
-/// Maximum allowed size of a precompressed WASM program.
-pub const MAX_PRECOMPRESSED_WASM_SIZE: ByteSize = ByteSize::kb(128);
-
-/// 4 bytes method selector for the activate method of ArbWasm.
-pub const ARBWASM_ACTIVATE_METHOD_HASH: &str = "58c780c2";
+/// Address of the Stylus program cache manager for Arbitrum chains.
+pub const CACHE_MANAGER_ADDRESS: Address = address!("d1bbd579988f394a26d6ec16e77b3fa8a5e8fcee");
 
 /// Target for compiled WASM folder in a Rust project
 pub const RUST_TARGET: &str = "wasm32-unknown-unknown";

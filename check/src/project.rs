@@ -2,30 +2,34 @@
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
 use crate::{
-    constants::{
-        BROTLI_COMPRESSION_LEVEL, EOF_PREFIX_NO_DICT, MAX_PRECOMPRESSED_WASM_SIZE,
-        MAX_PROGRAM_SIZE, RUST_TARGET,
-    },
+    constants::{BROTLI_COMPRESSION_LEVEL, EOF_PREFIX_NO_DICT, RUST_TARGET},
     macros::*,
 };
 use brotli2::read::BrotliEncoder;
-use bytesize::ByteSize;
 use cargo_stylus_util::{color::Color, sys};
 use eyre::{bail, eyre, Result, WrapErr};
-use std::{env::current_dir, fs, io::Read, path::PathBuf, process};
+use glob::glob;
+use std::process::Command;
+use std::{
+    env::current_dir,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    process,
+};
+use tiny_keccak::{Hasher, Keccak};
 
-#[derive(Default, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub enum OptLevel {
     #[default]
     S,
     Z,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BuildConfig {
     pub opt_level: OptLevel,
     pub stable: bool,
-    pub rebuild: bool,
 }
 
 impl BuildConfig {
@@ -41,33 +45,12 @@ impl BuildConfig {
 pub enum BuildError {
     #[error("could not find WASM in release dir ({path}).")]
     NoWasmFound { path: PathBuf },
-    #[error(
-        r#"compressed program size ({got}) exceeds max ({want}) despite --nightly flag. We recommend splitting up your program. 
-We are actively working to reduce WASM program sizes that use the Stylus SDK.
-To see all available optimization options, see more in:
-https://github.com/OffchainLabs/cargo-stylus/blob/main/OPTIMIZING_BINARIES.md"#
-    )]
-    ExceedsMaxDespiteBestEffort { got: ByteSize, want: ByteSize },
-    #[error(
-        r#"Brotli-compressed WASM program size ({got}) is bigger than program size limit: ({want}). We recommend splitting up your program. 
-We are actively working to reduce WASM program sizes that use the Stylus SDK.
-To see all available optimization options, see more in:
-https://github.com/OffchainLabs/cargo-stylus/blob/main/OPTIMIZING_BINARIES.md"#
-    )]
-    MaxCompressedSizeExceeded { got: ByteSize, want: ByteSize },
-    #[error(
-        r#"uncompressed WASM program size ({got}) is bigger than size limit: ({want}). We recommend splitting up your program. 
-We are actively working to reduce WASM program sizes that use the Stylus SDK.
-To see all available optimization options, see more in:
-https://github.com/OffchainLabs/cargo-stylus/blob/main/OPTIMIZING_BINARIES.md"#)]
-    MaxPrecompressedSizeExceeded { got: ByteSize, want: ByteSize },
 }
 
 /// Build a Rust project to WASM and return the path to the compiled WASM file.
 pub fn build_dylib(cfg: BuildConfig) -> Result<PathBuf> {
     let cwd: PathBuf = current_dir().map_err(|e| eyre!("could not get current dir: {e}"))?;
 
-    //if cfg.rebuild {
     let mut cmd = sys::new_command("cargo");
 
     if !cfg.stable {
@@ -124,52 +107,131 @@ pub fn build_dylib(cfg: BuildConfig) -> Result<PathBuf> {
         })
         .ok_or(BuildError::NoWasmFound { path: release_path })?;
 
-    if let Err(e) = compress_wasm(&wasm_file_path) {
-        if let Some(BuildError::MaxCompressedSizeExceeded { got, .. }) = e.downcast_ref() {
-            match cfg.opt_level {
-                OptLevel::S => {
-                    println!(
-                        r#"Compressed program built with defaults had program size {} > max of 24Kb, 
-rebuilding with optimizations. We are actively working to reduce WASM program sizes that are
-using the Stylus SDK. To see all available optimization options, see more in:
-https://github.com/OffchainLabs/cargo-stylus/blob/main/OPTIMIZING_BINARIES.md"#,
-                        got.red(),
-                    );
-                    // Attempt to build again with a bumped-up optimization level.
-                    return build_dylib(BuildConfig {
-                        opt_level: OptLevel::Z,
-                        stable: cfg.stable,
-                        rebuild: true,
-                    });
+    let (wasm, code) = compress_wasm(&wasm_file_path).wrap_err("failed to compress WASM")?;
+
+    greyln!(
+        "contract size: {}",
+        crate::check::format_file_size(code.len(), 16, 24)
+    );
+    greyln!(
+        "wasm size: {}",
+        crate::check::format_file_size(wasm.len(), 96, 128)
+    );
+    Ok(wasm_file_path)
+}
+
+fn all_paths(root_dir: &Path, source_file_patterns: Vec<String>) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::<PathBuf>::new();
+    let mut directories = Vec::<PathBuf>::new();
+    directories.push(root_dir.to_path_buf()); // Using `from` directly
+
+    let glob_paths = expand_glob_patterns(source_file_patterns)?;
+
+    while let Some(dir) = directories.pop() {
+        for entry in fs::read_dir(&dir)
+            .map_err(|e| eyre!("Unable to read directory {}: {e}", dir.display()))?
+        {
+            let entry = entry.map_err(|e| eyre!("Error finding file in {}: {e}", dir.display()))?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                if path.ends_with("target") || path.ends_with(".git") {
+                    continue; // Skip "target" and ".git" directories
                 }
-                OptLevel::Z => {
-                    if !cfg.stable {
-                        println!(
-                            r#"Compressed program still exceeding max program size {} > max of 24Kb, 
-rebuilding with optimizations. We are actively working to reduce WASM program sizes that are
-using the Stylus SDK. To see all available optimization options, see more in:
-https://github.com/OffchainLabs/cargo-stylus/blob/main/OPTIMIZING_BINARIES.md"#,
-                            got.red(),
-                        );
-                        // Attempt to build again with the nightly flag enabled and extra optimizations
-                        // only available with nightly compilation.
-                        return build_dylib(BuildConfig {
-                            opt_level: OptLevel::Z,
-                            stable: false,
-                            rebuild: true,
-                        });
+                directories.push(path);
+            } else if path.file_name().map_or(false, |f| {
+                // If the user has has specified a list of source file patterns, check if the file
+                // matches the pattern.
+                if !glob_paths.is_empty() {
+                    for glob_path in glob_paths.iter() {
+                        if glob_path == &path {
+                            return true;
+                        }
                     }
-                    return Err(BuildError::ExceedsMaxDespiteBestEffort {
-                        got: *got,
-                        want: MAX_PROGRAM_SIZE,
-                    }
-                    .into());
+                    false
+                } else {
+                    // Otherwise, by default include all rust files, Cargo.toml and Cargo.lock files.
+                    f == "Cargo.toml" || f == "Cargo.lock" || f.to_string_lossy().ends_with(".rs")
                 }
+            }) {
+                files.push(path);
             }
         }
-        return Err(e);
     }
-    Ok(wasm_file_path)
+    Ok(files)
+}
+
+pub fn hash_files(source_file_patterns: Vec<String>, cfg: BuildConfig) -> Result<[u8; 32]> {
+    let mut keccak = Keccak::v256();
+    let mut cmd = Command::new("cargo");
+    if !cfg.stable {
+        cmd.arg("+nightly");
+    }
+    cmd.arg("--version");
+    let output = cmd
+        .output()
+        .map_err(|e| eyre!("failed to execute cargo command: {e}"))?;
+    if !output.status.success() {
+        bail!("cargo version command failed");
+    }
+    keccak.update(&output.stdout);
+    if cfg.opt_level == OptLevel::Z {
+        keccak.update(&[0]);
+    } else {
+        keccak.update(&[1]);
+    }
+
+    let mut buf = vec![0u8; 0x100000];
+
+    let mut hash_file = |filename: &Path| -> Result<()> {
+        keccak.update(&(filename.as_os_str().len() as u64).to_be_bytes());
+        keccak.update(filename.as_os_str().as_encoded_bytes());
+        let mut file = std::fs::File::open(filename)
+            .map_err(|e| eyre!("failed to open file {}: {e}", filename.display()))?;
+        keccak.update(&file.metadata().unwrap().len().to_be_bytes());
+        loop {
+            let bytes_read = file
+                .read(&mut buf)
+                .map_err(|e| eyre!("Unable to read file {}: {e}", filename.display()))?;
+            if bytes_read == 0 {
+                break;
+            }
+            keccak.update(&buf[..bytes_read]);
+        }
+        Ok(())
+    };
+
+    let mut paths = all_paths(PathBuf::from(".").as_path(), source_file_patterns)?;
+    paths.sort();
+
+    for filename in paths.iter() {
+        println!(
+            "File used for deployment hash: {}",
+            filename.as_os_str().to_string_lossy()
+        );
+        hash_file(filename)?;
+    }
+
+    let mut hash = [0u8; 32];
+    keccak.finalize(&mut hash);
+    println!(
+        "Project hash computed on deployment: {:?}",
+        hex::encode(hash)
+    );
+    Ok(hash)
+}
+
+fn expand_glob_patterns(patterns: Vec<String>) -> Result<Vec<PathBuf>> {
+    let mut files_to_include = Vec::new();
+    for pattern in patterns {
+        let paths = glob(&pattern)
+            .map_err(|e| eyre!("Failed to read glob pattern '{}': {}", pattern, e))?;
+        for path_result in paths {
+            let path = path_result.map_err(|e| eyre!("Error processing path: {}", e))?;
+            files_to_include.push(path);
+        }
+    }
+    Ok(files_to_include)
 }
 
 /// Reads a WASM file at a specified path and returns its brotli compressed bytes.
@@ -189,4 +251,57 @@ pub fn compress_wasm(wasm: &PathBuf) -> Result<(Vec<u8>, Vec<u8>)> {
     contract_code.extend(compressed_bytes);
 
     Ok((wasm.to_vec(), contract_code))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_all_paths() -> Result<()> {
+        let dir = tempdir()?;
+        let dir_path = dir.path();
+
+        let files = vec!["file.rs", "ignore.me", "Cargo.toml", "Cargo.lock"];
+        for file in files.iter() {
+            let file_path = dir_path.join(file);
+            let mut file = File::create(&file_path)?;
+            writeln!(file, "Test content")?;
+        }
+
+        let dirs = vec!["nested", ".git", "target"];
+        for d in dirs.iter() {
+            let subdir_path = dir_path.join(d);
+            if !subdir_path.exists() {
+                fs::create_dir(&subdir_path)?;
+            }
+        }
+
+        let nested_dir = dir_path.join("nested");
+        let nested_file = nested_dir.join("nested.rs");
+        if !nested_file.exists() {
+            File::create(&nested_file)?;
+        }
+
+        let found_files = all_paths(
+            dir_path,
+            vec![format!(
+                "{}/{}",
+                dir_path.as_os_str().to_string_lossy(),
+                "**/*.rs"
+            )],
+        )?;
+
+        // Check that the correct files are included
+        assert!(found_files.contains(&dir_path.join("file.rs")));
+        assert!(found_files.contains(&nested_dir.join("nested.rs")));
+        assert!(!found_files.contains(&dir_path.join("ignore.me")));
+        assert!(!found_files.contains(&dir_path.join("Cargo.toml"))); // Not matching *.rs
+        assert_eq!(found_files.len(), 2, "Should only find 2 Rust files.");
+
+        Ok(())
+    }
 }

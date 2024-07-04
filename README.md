@@ -13,7 +13,7 @@ A cargo subcommand for building, verifying, and deploying Arbitrum Stylus WASM p
 Install [Rust](https://www.rust-lang.org/tools/install), and then install the plugin using the Cargo tool:
 
 ```
-RUSTFLAGS="-C link-args=-rdynamic" cargo install --force cargo-stylus
+cargo install --force cargo-stylus cargo-stylus-check
 ```
 
 Add the `wasm32-unknown-unknown` build target to your Rust compiler:
@@ -38,15 +38,15 @@ Usage:
 
 ### Overview
 
-The cargo stylus command comes with useful commands such as `new`, `check` and `deploy`, and `export-abi` for developing and deploying Stylus programs to Arbitrum chains. Here's a common workflow: 
+The cargo stylus command comes with useful commands such as `new`, `check` and `deploy`, and `export-abi` for developing and deploying Stylus programs to Arbitrum chains. Here's a common workflow:
 
-Start a new Stylus project with 
+Start a new Stylus project with
 
 ```
 cargo stylus new <YOUR_PROJECT_NAME>
 ```
 
-The command above clones a local copy of the [stylus-hello-world](https://github.com/OffchainLabs/stylus-hello-world) starter project, which implements a Counter smart contract in Rust. See the [README](https://github.com/OffchainLabs/stylus-hello-world/blob/main/README.md) of stylus-hello-world for more details. 
+The command above clones a local copy of the [stylus-hello-world](https://github.com/OffchainLabs/stylus-hello-world) starter project, which implements a Counter smart contract in Rust. See the [README](https://github.com/OffchainLabs/stylus-hello-world/blob/main/README.md) of stylus-hello-world for more details.
 
 You can also use `cargo stylus new --minimal <YOUR_PROJECT_NAME>` to create a more barebones example with a Stylus entrypoint locally.
 
@@ -80,7 +80,7 @@ Location:
     prover/src/binary.rs:493:9, data: None)
 ```
 
-To read more about what counts as valid vs. invalid user WASM programs, see [VALID_WASM](./VALID_WASM.md).
+To read more about what counts as valid vs. invalid user WASM programs, see [VALID_WASM](./check/VALID_WASM.md).
 
 If your program succeeds, you'll see the following message:
 
@@ -154,9 +154,30 @@ Usage: cargo stylus deploy [OPTIONS]
 
 See `--help` for all available flags and default values.
 
+## Verifying Stylus Programs
+
+**cargo stylus verify**
+
+Verifies that a deployed smart contract is identical to that produced by the
+current project. Since Stylus smart contracts include a hash of all project
+files, this additionally verifies that code comments and other files are
+identical. To ensure build reproducibility, if a program is to be verified,
+it should be both deployed and verified using `cargo stylus reproducible`.
+
+See `--help` for all available flags and default values.
+
+## Reproducibly Deploying and Verifying
+
+**cargo stylus reproducible**
+
+Runs a `cargo stylus` command in a Docker container to ensure build
+reproducibility.
+
+See `--help` for all available flags and default values.
+
 ## Deploying Non-Rust WASM Projects
 
-The Stylus tool can also be used to deploy non-Rust, WASM projects to Stylus by specifying the WASM file directly with the `--wasm-file-path` flag to any of the cargo stylus commands. 
+The Stylus tool can also be used to deploy non-Rust, WASM projects to Stylus by specifying the WASM file directly with the `--wasm-file` flag to any of the cargo stylus commands.
 
 Even WebAssembly Text [(WAT)](https://www.webassemblyman.com/wat_webassembly_text_format.html) files are supported. This means projects that are just individual WASM files can be deployed onchain without needing to have been compiled by Rust. WASMs produced by other languages, such as C, can be used with the tool this way.
 
@@ -164,14 +185,19 @@ For example:
 
 ```js
 (module
+    (memory 0 0)
+    (export "memory" (memory 0))
     (type $t0 (func (param i32) (result i32)))
     (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
-        get_local $p0
+        local.get $p0
         i32.const 1
-        i32.add))
+        i32.add)
+    (func (export "user_entrypoint") (param $args_len i32) (result i32)
+        (i32.const 0)
+    ))
 ```
 
-can be saved as `add.wat` and used as `cargo stylus check --wasm-file-path=add.wat` or `cargo stylus deploy --wasm-file-path=add.wat`.
+can be saved as `add.wat` and used as `cargo stylus check --wasm-file=add.wat` or `cargo stylus deploy --wasm-file=add.wat`.
 
 ## Exporting Solidity ABIs
 
@@ -183,11 +209,11 @@ cargo stylus export-abi
 
 ## Optimizing Binary Sizes
 
-Brotli-compressed, Stylus program WASM binaries must fit within the **24Kb** [code-size limit](https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-contract-size-limit/) of Ethereum smart contracts. By default, the `cargo stylus check` will attempt to compile a Rust program into WASM with reasonable optimizations and verify its compressed size fits within the limit. However, there are additional options available in case a program exceeds the 24Kb limit from using default settings. Deploying smaller binaries onchain is cheaper and better for the overall network, as deployed WASM programs will exist on the Arbitrum chain's storage forever. 
+Brotli-compressed, Stylus program WASM binaries must fit within the **24Kb** [code-size limit](https://ethereum.org/en/developers/tutorials/downsizing-contracts-to-fight-the-contract-size-limit/) of Ethereum smart contracts. By default, the `cargo stylus check` will attempt to compile a Rust program into WASM with reasonable optimizations and verify its compressed size fits within the limit. However, there are additional options available in case a program exceeds the 24Kb limit from using default settings. Deploying smaller binaries onchain is cheaper and better for the overall network, as deployed WASM programs will exist on the Arbitrum chain's storage forever.
 
 We recommend optimizing your Stylus program's sizes to smaller sizes, but keep in mind the safety tradeoffs of using some of the more advanced optimizations. However, some small programs when compiled to much smaller sizes can suffer performance penalties.
 
-For a deep-dive into the different options for optimizing binary sizes using cargo stylus, see [OPTIMIZING_BINARIES.md](./OPTIMIZING_BINARIES.md).
+For a deep-dive into the different options for optimizing binary sizes using cargo stylus, see [OPTIMIZING_BINARIES.md](./check/OPTIMIZING_BINARIES.md).
 
 ## License
 
