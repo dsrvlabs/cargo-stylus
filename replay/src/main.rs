@@ -136,9 +136,12 @@ async fn replay(args: ReplayArgs) -> Result<()> {
             cmd.arg(arg);
         }
         cmd.arg("--child");
+        #[cfg(unix)]
         let err = cmd.exec();
+        #[cfg(windows)]
+        let err = cmd.status();
 
-        bail!("failed to exec gdb {}", err);
+        bail!("failed to exec gdb {:?}", err);
     }
 
     let provider = sys::new_provider(&args.endpoint)?;
