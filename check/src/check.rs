@@ -4,9 +4,9 @@
 use crate::deploy::TxKind;
 use crate::{
     check::ArbWasm::ArbWasmErrors,
-    constants::{ARB_WASM_H160, ONE_ETH},
+    constants::{ARB_WASM_H160, ONE_ETH, TOOLCHAIN_FILE_NAME},
     macros::*,
-    project::{self, BuildConfig},
+    project::{self, extract_toolchain_channel, BuildConfig},
     CheckConfig,
 };
 use alloy_primitives::{Address, B256, U256};
@@ -67,6 +67,7 @@ pub async fn check(cfg: &CheckConfig) -> Result<ProgramCheck> {
     let code_copied = code.clone();
     
     let mut code_len = [0u8; 32];
+    
     ethers::prelude::U256::from(code_copied.len()).to_big_endian(&mut code_len);
     let mut tx_code: Vec<u8> = vec![];
     tx_code.push(0x7f); // PUSH32
@@ -84,11 +85,17 @@ pub async fn check(cfg: &CheckConfig) -> Result<ProgramCheck> {
     tx_code.extend(project_hash);
     tx_code.extend(code_copied);
     write_tx_data(TxKind::Deployment, &tx_code)?;
+    
+    let (wasm_file_bytes, code) =
+        project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
 
     greyln!("contract size: {}", format_file_size(code.len(), 16, 24));
 
     if verbose {
-        greyln!("wasm size: {}", format_file_size(wasm.len(), 96, 128));
+        greyln!(
+            "wasm size: {}",
+            format_file_size(wasm_file_bytes.len(), 96, 128)
+        );
         greyln!("connecting to RPC: {}", &cfg.common_cfg.endpoint.lavender());
     }
 
@@ -97,34 +104,23 @@ pub async fn check(cfg: &CheckConfig) -> Result<ProgramCheck> {
     let codehash = alloy_primitives::keccak256(&code);
 
     if program_exists(codehash, &provider).await? {
-        return Ok(ProgramCheck::Active { code, project_hash });
+        return Ok(ProgramCheck::Active { code });
     }
 
     let address = cfg.program_address.unwrap_or(H160::random());
     let fee = check_activate(code.clone().into(), address, &provider).await?;
     let visual_fee = format_data_fee(fee).unwrap_or("???".red());
     greyln!("wasm data fee: {visual_fee}");
-    Ok(ProgramCheck::Ready {
-        code,
-        fee,
-        project_hash,
-    })
+    Ok(ProgramCheck::Ready { code, fee })
 }
 
 /// Whether a program is active, or needs activation.
 #[derive(PartialEq)]
 pub enum ProgramCheck {
     /// Program already exists onchain.
-    Active {
-        code: Vec<u8>,
-        project_hash: [u8; 32],
-    },
+    Active { code: Vec<u8> },
     /// Program can be activated with the given data fee.
-    Ready {
-        code: Vec<u8>,
-        fee: U256,
-        project_hash: [u8; 32],
-    },
+    Ready { code: Vec<u8>, fee: U256 },
 }
 
 impl ProgramCheck {
@@ -134,14 +130,6 @@ impl ProgramCheck {
             Self::Ready { code, .. } => code,
         }
     }
-
-    pub fn project_hash(&self) -> &[u8; 32] {
-        match self {
-            Self::Active { project_hash, .. } => project_hash,
-            Self::Ready { project_hash, .. } => project_hash,
-        }
-    }
-
     pub fn suggest_fee(&self) -> U256 {
         match self {
             Self::Active { .. } => U256::default(),
@@ -155,12 +143,13 @@ impl CheckConfig {
         if let Some(wasm) = self.wasm_file.clone() {
             return Ok((wasm, [0u8; 32]));
         }
-        let cfg = BuildConfig::new(self.common_cfg.rust_stable);
-        let project_hash = project::hash_files(
-            self.common_cfg.source_files_for_project_hash.clone(),
-            cfg.clone(),
-        )?;
-        let wasm = project::build_dylib(cfg)?;
+        let toolchain_file_path = PathBuf::from(".").as_path().join(TOOLCHAIN_FILE_NAME);
+        let toolchain_channel = extract_toolchain_channel(&toolchain_file_path)?;
+        let rust_stable = !toolchain_channel.contains("nightly");
+        let cfg = BuildConfig::new(rust_stable);
+        let wasm = project::build_dylib(cfg.clone())?;
+        let project_hash =
+            project::hash_files(self.common_cfg.source_files_for_project_hash.clone(), cfg)?;
         Ok((wasm, project_hash))
     }
 }
@@ -273,7 +262,7 @@ async fn program_exists(codehash: B256, provider: &Provider<Http>) -> Result<boo
 }
 
 /// Checks program activation, returning the data fee.
-async fn check_activate(code: Bytes, address: H160, provider: &Provider<Http>) -> Result<U256> {
+pub async fn check_activate(code: Bytes, address: H160, provider: &Provider<Http>) -> Result<U256> {
     let program = Address::from(address.to_fixed_bytes());
     let data = ArbWasm::activateProgramCall { program }.abi_encode();
     let tx = Eip1559TransactionRequest::new()

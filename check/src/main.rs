@@ -4,6 +4,7 @@
 use clap::{ArgGroup, Args, Parser};
 use ethers::types::{H160, U256};
 use eyre::{eyre, Context, Result};
+use std::fmt;
 use std::path::PathBuf;
 use tokio::runtime::Builder;
 
@@ -51,6 +52,9 @@ enum Apis {
         #[arg(long)]
         json: bool,
     },
+    /// Activate an already deployed contract.
+    #[command(alias = "a")]
+    Activate(ActivateConfig),
     /// Cache a contract using the Stylus CacheManager for Arbitrum chains.
     Cache(CacheConfig),
     /// Check a contract.
@@ -59,9 +63,6 @@ enum Apis {
     /// Deploy a contract.
     #[command(alias = "d")]
     Deploy(DeployConfig),
-    /// Deploy a contract.
-    #[command(alias = "a")]
-    Activate(ActivateConfig),
     /// Build in a Docker container to ensure reproducibility.
     ///
     /// Specify the Rust version to use, followed by the cargo stylus subcommand.
@@ -85,9 +86,6 @@ struct CommonConfig {
     /// Arbitrum RPC endpoint.
     #[arg(short, long, default_value = "https://sepolia-rollup.arbitrum.io/rpc")]
     endpoint: String,
-    /// Whether to use stable Rust.
-    #[arg(long)]
-    rust_stable: bool,
     /// Whether to print debug info.
     #[arg(long)]
     verbose: bool,
@@ -112,10 +110,25 @@ pub struct CacheConfig {
     auth: AuthOpts,
     /// Deployed and activated program address to cache.
     #[arg(long)]
-    program_address: H160,
+    address: H160,
     /// Bid, in wei, to place on the desired program to cache
     #[arg(short, long, hide(true))]
     bid: Option<u64>,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct ActivateConfig {
+    #[command(flatten)]
+    common_cfg: CommonConfig,
+    /// Wallet source to use.
+    #[command(flatten)]
+    auth: AuthOpts,
+    /// Deployed Stylus program address to activate.
+    #[arg(long)]
+    address: H160,
+    /// Percent to bump the estimated activation data fee by. Default of 20%
+    #[arg(long, default_value = "20")]
+    data_fee_bump_percent: u64,
 }
 
 #[derive(Args, Clone, Debug)]
@@ -128,12 +141,10 @@ pub struct CheckConfig {
     /// Where to deploy and activate the program (defaults to a random address).
     #[arg(long)]
     program_address: Option<H160>,
-}
-
-#[derive(Args, Clone, Debug)]
-struct ActivateConfig {
+    /// If specified, will not run the command in a reproducible docker container. Useful for local
+    /// builds, but at the risk of not having a reproducible contract for verification purposes.
     #[arg(long)]
-    contract_address: Option<H160>,
+    no_verify: bool,
 }
 
 #[derive(Args, Clone, Debug)]
@@ -154,10 +165,13 @@ struct DeployConfig {
 pub struct VerifyConfig {
     #[command(flatten)]
     common_cfg: CommonConfig,
-
     /// Hash of the deployment transaction.
     #[arg(long)]
     deployment_tx: String,
+    #[arg(long)]
+    /// If specified, will not run the command in a reproducible docker container. Useful for local
+    /// builds, but at the risk of not having a reproducible contract for verification purposes.
+    no_verify: bool,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -191,6 +205,110 @@ pub struct TxSendingOpts {
     output_tx_data_to_dir: Option<PathBuf>,
 }
 
+impl fmt::Display for CommonConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Convert the vector of source files to a comma-separated string
+        let mut source_files: String = "".to_string();
+        if !self.source_files_for_project_hash.is_empty() {
+            source_files = format!(
+                "--source-files-for-project-hash={}",
+                self.source_files_for_project_hash.join(", ")
+            );
+        }
+        write!(
+            f,
+            "--endpoint={} {} {} {}",
+            self.endpoint,
+            match self.verbose {
+                true => "--verbose",
+                false => "",
+            },
+            source_files,
+            match &self.max_fee_per_gas_gwei {
+                Some(fee) => format!("--max-fee-per-gas-gwei {}", fee),
+                None => "".to_string(),
+            }
+        )
+    }
+}
+
+impl fmt::Display for CheckConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {} {}",
+            self.common_cfg,
+            match &self.wasm_file {
+                Some(path) => format!("--wasm-file={}", path.display()),
+                None => "".to_string(),
+            },
+            match &self.program_address {
+                Some(addr) => format!("--program-address={:?}", addr),
+                None => "".to_string(),
+            },
+            match self.no_verify {
+                true => "--no-verify".to_string(),
+                false => "".to_string(),
+            },
+        )
+    }
+}
+
+impl fmt::Display for DeployConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {}",
+            self.check_config,
+            self.auth,
+            match self.estimate_gas {
+                true => "--estimate-gas".to_string(),
+                false => "".to_string(),
+            },
+        )
+    }
+}
+
+impl fmt::Display for AuthOpts {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {} {}",
+            match &self.private_key_path {
+                Some(path) => format!("--private-key-path={}", path.display()),
+                None => "".to_string(),
+            },
+            match &self.private_key {
+                Some(key) => format!("--private-key={}", key.clone()),
+                None => "".to_string(),
+            },
+            match &self.keystore_path {
+                Some(path) => format!("--keystore-path={}", path.clone()),
+                None => "".to_string(),
+            },
+            match &self.keystore_password_path {
+                Some(path) => format!("--keystore-password-path={}", path.display()),
+                None => "".to_string(),
+            }
+        )
+    }
+}
+
+impl fmt::Display for VerifyConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} --deployment-tx={} {}",
+            self.common_cfg,
+            self.deployment_tx,
+            match self.no_verify {
+                true => "--no-verify".to_string(),
+                false => "".to_string(),
+            }
+        )
+    }
+}
+
 fn main() -> Result<()> {
     let args = Opts::parse();
     let runtime = Builder::new_multi_thread().enable_all().build()?;
@@ -211,17 +329,52 @@ async fn main_impl(args: Opts) -> Result<()> {
         Apis::ExportAbi { json, output } => {
             run!(export_abi::export_abi(output, json), "failed to export abi");
         }
+        Apis::Activate(config) => {
+            run!(
+                activate::activate_program(&config).await,
+                "stylus activate failed"
+            );
+        }
         Apis::Cache(config) => {
             run!(cache::cache_program(&config).await, "stylus cache failed");
         }
         Apis::Check(config) => {
-            run!(check::check(&config).await, "stylus checks failed");
+            if config.no_verify {
+                run!(check::check(&config).await, "stylus checks failed");
+            } else {
+                let mut commands: Vec<String> =
+                    vec![String::from("check"), String::from("--no-verify")];
+                let config_args = config
+                    .to_string()
+                    .split(' ')
+                    .map(|s| s.to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<String>>();
+                commands.extend(config_args);
+                run!(
+                    docker::run_reproducible(&commands),
+                    "failed reproducible run"
+                );
+            }
         }
         Apis::Deploy(config) => {
-            run!(deploy::deploy(config).await, "failed to deploy");
-        }
-        Apis::Activate(config) => {
-            run!(activate::activate(config).await, "failed to activate");
+            if config.check_config.no_verify {
+                run!(deploy::deploy(config).await, "stylus deploy failed");
+            } else {
+                let mut commands: Vec<String> =
+                    vec![String::from("deploy"), String::from("--no-verify")];
+                let config_args = config
+                    .to_string()
+                    .split(' ')
+                    .map(|s| s.to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<String>>();
+                commands.extend(config_args);
+                run!(
+                    docker::run_reproducible(&commands),
+                    "failed reproducible run"
+                );
+            }
         }
         Apis::Reproducible {
             rust_version,
@@ -233,7 +386,23 @@ async fn main_impl(args: Opts) -> Result<()> {
             );
         }
         Apis::Verify(config) => {
-            run!(verify::verify(config).await, "failed to verify");
+            if config.no_verify {
+                run!(verify::verify(config).await, "failed to verify");
+            } else {
+                let mut commands: Vec<String> =
+                    vec![String::from("verify"), String::from("--no-verify")];
+                let config_args = config
+                    .to_string()
+                    .split(' ')
+                    .map(|s| s.to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<String>>();
+                commands.extend(config_args);
+                run!(
+                    docker::run_reproducible(&commands),
+                    "failed reproducible run"
+                );
+            }
         }
     }
     Ok(())

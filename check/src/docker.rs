@@ -2,9 +2,15 @@
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
+use cargo_stylus_util::color::Color;
 use eyre::{bail, eyre, Result};
+
+use crate::constants::{RUST_BASE_IMAGE_VERSION, TOOLCHAIN_FILE_NAME};
+use crate::macros::greyln;
+use crate::project::extract_toolchain_channel;
 
 fn version_to_image_name(version: &str) -> String {
     format!("cargo-stylus-{}", version)
@@ -16,6 +22,21 @@ fn image_exists(name: &str) -> Result<bool> {
         .arg(name)
         .output()
         .map_err(|e| eyre!("failed to execute Docker command: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = std::str::from_utf8(&output.stderr)
+            .map_err(|e| eyre!("failed to read Docker command stderr: {e}"))?;
+        if stderr.contains("Cannot connect to the Docker daemon") {
+            println!(
+                r#"Cargo stylus deploy|check|verify run in a Docker container by default to ensure deployments
+are reproducible, but Docker is not found in your system. Please install Docker if you wish to create 
+a reproducible deployment, or opt out by using the --no-verify flag for local builds"#
+            );
+            bail!("Docker not running");
+        }
+        bail!(stderr.to_string())
+    }
+
     Ok(output.stdout.iter().filter(|c| **c == b'\n').count() > 1)
 }
 
@@ -24,6 +45,15 @@ fn create_image(version: &str) -> Result<()> {
     if image_exists(&name)? {
         return Ok(());
     }
+    let cargo_stylus_version = env!("CARGO_PKG_VERSION");
+    let cargo_stylus_version: String = cargo_stylus_version
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '.')
+        .collect();
+    println!(
+        "Building Docker image for cargo-stylus version {} and Rust toolchain {}",
+        cargo_stylus_version, version,
+    );
     let mut child = Command::new("docker")
         .arg("build")
         .arg("-t")
@@ -36,16 +66,20 @@ fn create_image(version: &str) -> Result<()> {
     write!(
         child.stdin.as_mut().unwrap(),
         "\
-            FROM rust:{} as builder\n\
+            FROM --platform=linux/amd64 rust:{} as builder\n\
+            RUN rustup toolchain install {}-x86_64-unknown-linux-gnu 
+            RUN rustup default {}-x86_64-unknown-linux-gnu
             RUN rustup target add wasm32-unknown-unknown
             RUN rustup target add wasm32-wasi
-            RUN rustup target add aarch64-unknown-linux-gnu
-            RUN cargo install cargo-stylus
-            RUN cargo install --force cargo-stylus-check
-            RUN cargo install --force cargo-stylus-replay
-            RUN cargo install --force cargo-stylus-cgen
+            RUN rustup target add x86_64-unknown-linux-gnu
+            RUN cargo install cargo-stylus-check --version {} --force
+            RUN cargo install cargo-stylus --version {} --force
         ",
-        version
+        RUST_BASE_IMAGE_VERSION,
+        version,
+        version,
+        cargo_stylus_version,
+        cargo_stylus_version,
     )?;
     child.wait().map_err(|e| eyre!("wait failed: {e}"))?;
     Ok(())
@@ -69,17 +103,47 @@ fn run_in_docker_container(version: &str, command_line: &[&str]) -> Result<()> {
         .arg(name)
         .args(command_line)
         .spawn()
-        .map_err(|e| eyre!("failed to execure Docker command: {e}"))?
+        .map_err(|e| eyre!("failed to execute Docker command: {e}"))?
         .wait()
         .map_err(|e| eyre!("wait failed: {e}"))?;
     Ok(())
 }
 
-pub fn run_reproducible(version: &str, command_line: &[String]) -> Result<()> {
+pub fn run_reproducible(command_line: &[String]) -> Result<()> {
+    verify_valid_host()?;
+    let toolchain_file_path = PathBuf::from(".").as_path().join(TOOLCHAIN_FILE_NAME);
+    let toolchain_channel = extract_toolchain_channel(&toolchain_file_path)?;
+    greyln!(
+        "Running reproducible Stylus command with toolchain {}",
+        toolchain_channel.mint()
+    );
     let mut command = vec!["cargo", "stylus"];
     for s in command_line.iter() {
         command.push(s);
     }
-    create_image(version)?;
-    run_in_docker_container(version, &command)
+    create_image(&toolchain_channel)?;
+    run_in_docker_container(&toolchain_channel, &command)
+}
+
+fn verify_valid_host() -> Result<()> {
+    let Ok(os_type) = sys_info::os_type() else {
+        bail!("unable to determine host OS type");
+    };
+    if os_type == "Windows" {
+        // Check for WSL environment
+        let Ok(kernel_version) = sys_info::os_release() else {
+            bail!("unable to determine kernel version");
+        };
+        if kernel_version.contains("microsoft") || kernel_version.contains("WSL") {
+            greyln!("Detected Windows Linux Subsystem host");
+        } else {
+            bail!(
+                "Reproducible cargo stylus commands on Windows are only supported \
+            in Windows Linux Subsystem (WSL). Please install within WSL. \
+            To instead opt out of reproducible builds, add the --no-verify \
+            flag to your commands."
+            );
+        }
+    }
+    Ok(())
 }

@@ -2,7 +2,7 @@
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
 use cargo_stylus_util::{color::Color, sys};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use eyre::{bail, Result};
 
 // Conditional import for Unix-specific `CommandExt`
@@ -34,11 +34,13 @@ enum Subcommands {
     /// Export a Solidity ABI.
     ExportAbi,
     /// Cache a contract.
-    #[command(alias = "c")]
     Cache,
     /// Check a contract.
     #[command(alias = "c")]
     Check,
+    /// Activate an already deployed program
+    #[command(alias = "a")]
+    Activate,
     /// Deploy a contract.
     #[command(alias = "d")]
     Deploy,
@@ -51,9 +53,6 @@ enum Subcommands {
     /// Verify the deployment of a Stylus program against a local project.
     #[command(alias = "v")]
     Verify,
-    /// Run cargo stylus commands in a Docker container for reproducibility.
-    #[command()]
-    Reproducible,
     /// Generate C code.
     #[command()]
     CGen,
@@ -75,7 +74,7 @@ const COMMANDS: &[Binary] = &[
             "check",
             "deploy",
             "verify",
-            "reproducible",
+            "a",
             "n",
             "x",
             "c",
@@ -102,14 +101,16 @@ const COMMANDS: &[Binary] = &[
     },
 ];
 
+// prints help message and exits
 fn exit_with_help_msg() -> ! {
-    Opts::parse_from(["--help"]);
-    unreachable!()
+    Opts::command().print_help().unwrap();
+    std::process::exit(0);
 }
 
+// prints version information and exits
 fn exit_with_version() -> ! {
-    Opts::parse_from(["--version"]);
-    unreachable!()
+    println!("{}", Opts::command().render_version());
+    std::process::exit(0);
 }
 
 fn main() -> Result<()> {
