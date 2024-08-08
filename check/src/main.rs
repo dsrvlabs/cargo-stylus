@@ -18,8 +18,8 @@ mod export_abi;
 mod macros;
 mod new;
 mod project;
-mod verify;
 mod tx;
+mod verify;
 mod wallet;
 
 #[derive(Parser, Debug)]
@@ -380,8 +380,10 @@ async fn main_impl(args: Opts) -> Result<()> {
             rust_version,
             stylus,
         } => {
+            let mut commands: Vec<String> = vec![rust_version];
+            commands.extend(stylus);
             run!(
-                docker::run_reproducible(&rust_version, &stylus),
+                docker::run_reproducible(&commands),
                 "failed reproducible run"
             );
         }

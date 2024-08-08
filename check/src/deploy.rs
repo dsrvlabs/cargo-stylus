@@ -3,7 +3,6 @@
 
 #![allow(clippy::println_empty_string)]
 
-use std::fs;
 use crate::{
     check::{self, ProgramCheck},
     constants::ARB_WASM_H160,
@@ -26,6 +25,7 @@ use ethers::{
     types::{transaction::eip2718::TypedTransaction, Eip1559TransactionRequest, H160, U256, U64},
 };
 use eyre::{bail, eyre, Result, WrapErr};
+use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -314,7 +314,7 @@ fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> eyre::Result<()> {
     if !path.exists() {
         fs::create_dir_all(&path).map_err(|e| eyre!("could not create output directory: {e}"))?;
     }
-    
+
     path = path.join(file_name);
     let path_str = path.as_os_str().to_string_lossy();
     println!(

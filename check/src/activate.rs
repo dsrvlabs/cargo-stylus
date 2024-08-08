@@ -4,10 +4,10 @@
 #![allow(clippy::println_empty_string)]
 
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
-use alloy_primitives::{Address, U256 as AU256};
+use alloy_primitives::Address;
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
 use ethers::{
@@ -15,7 +15,8 @@ use ethers::{
     middleware::SignerMiddleware,
     prelude::*,
     providers::{Middleware, Provider},
-    types::{Eip1559TransactionRequest, H160, TypedTransaction, U256, U64},
+    types::transaction::eip2718::TypedTransaction,
+    types::{Eip1559TransactionRequest, H160, U256},
     utils::format_units,
 };
 use eyre::{bail, eyre, Context, Result, WrapErr};
@@ -23,9 +24,9 @@ use eyre::{bail, eyre, Context, Result, WrapErr};
 use cargo_stylus_util::color::{Color, DebugColor};
 use cargo_stylus_util::sys;
 
-use crate::macros::greyln;
 use crate::check::check_activate;
 use crate::constants::ARB_WASM_H160;
+use crate::macros::greyln;
 use crate::ActivateConfig;
 
 pub enum TxKind {
@@ -56,7 +57,7 @@ type SignerClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 /// Deploys a stylus program, activating if needed.
 pub async fn activate(cfg: ActivateConfig) -> Result<()> {
     greyln!("@@@ activate");
-    let contract = cfg.contract_address.unwrap();
+    let contract = cfg.address;
     let program: Address = contract.to_fixed_bytes().into();
     let data = ArbWasm::activateProgramCall { program }.abi_encode();
     write_tx_data(TxKind::Activation, &data)?;
@@ -70,7 +71,7 @@ fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> eyre::Result<()> {
     if !path.exists() {
         fs::create_dir_all(&path).map_err(|e| eyre!("could not create output directory: {e}"))?;
     }
-    
+
     path = path.join(file_name);
     let path_str = path.as_os_str().to_string_lossy();
     let hex: String = data

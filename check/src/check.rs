@@ -22,9 +22,9 @@ use ethers::{
 };
 use eyre::{bail, eyre, ErrReport, Result, WrapErr};
 use serde_json::Value;
+use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
-use std::fs::{self, File};
 
 sol! {
     interface ArbWasm {
@@ -62,12 +62,13 @@ pub async fn check(cfg: &CheckConfig) -> Result<ProgramCheck> {
         greyln!("reading wasm file at {}", wasm.to_string_lossy().lavender());
     }
 
-    let (wasm, code) = project::compress_wasm(&wasm).wrap_err("failed to compress WASM")?;
-    
+    let (wasm_file_bytes, code) =
+        project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
+
     let code_copied = code.clone();
-    
+
     let mut code_len = [0u8; 32];
-    
+
     ethers::prelude::U256::from(code_copied.len()).to_big_endian(&mut code_len);
     let mut tx_code: Vec<u8> = vec![];
     tx_code.push(0x7f); // PUSH32
@@ -85,9 +86,6 @@ pub async fn check(cfg: &CheckConfig) -> Result<ProgramCheck> {
     tx_code.extend(project_hash);
     tx_code.extend(code_copied);
     write_tx_data(TxKind::Deployment, &tx_code)?;
-    
-    let (wasm_file_bytes, code) =
-        project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
 
     greyln!("contract size: {}", format_file_size(code.len(), 16, 24));
 
@@ -284,7 +282,7 @@ fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> eyre::Result<()> {
     if !path.exists() {
         fs::create_dir_all(&path).map_err(|e| eyre!("could not create output directory: {e}"))?;
     }
-    
+
     path = path.join(file_name);
     let path_str = path.as_os_str().to_string_lossy();
     println!(
