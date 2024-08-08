@@ -1,4 +1,4 @@
-# Cargo Stylus 
+# Cargo Stylus
 
 [![linux](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/linux.yml/badge.svg)](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/linux.yml) [![mac](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/mac.yml/badge.svg)](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/mac.yml) [![windows](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/windows.yml/badge.svg)](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/windows.yml) [![lint](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/check.yml/badge.svg)](https://github.com/OffchainLabs/cargo-stylus/actions/workflows/check.yml)
 
@@ -29,10 +29,10 @@ cargo stylus --help
 
 Cargo command for developing Arbitrum Stylus projects
 
-Usage: 
+Usage:
     cargo stylus new
     cargo stylus export-abi
-    cargo stylus check 
+    cargo stylus check
     cargo stylus deploy
 ```
 
@@ -54,7 +54,6 @@ You can also use `cargo stylus new --minimal <YOUR_PROJECT_NAME>` to create a mo
 
 All testnet information, including faucets and RPC endpoints can be found [here](https://docs.arbitrum.io/stylus/reference/testnet-information).
 
-
 ### Developing With Stylus
 
 Then, develop your Rust program normally and take advantage of all the features the [stylus-sdk](https://github.com/OffchainLabs/stylus-sdk-rs) has to offer. To check whether or not your program will successfully deploy and activate onchain, use the `cargo stylus check` subcommand:
@@ -70,7 +69,7 @@ If the command above fails, you'll see detailed information about why your WASM 
 ```
 Reading WASM file at bad-export.wat
 Compressed WASM size: 55 B
-Stylus checks failed: program predeployment check failed when checking against 
+Stylus checks failed: program predeployment check failed when checking against
 ARB_WASM_ADDRESS 0x0000…0071: (code: -32000, message: program activation failed: failed to parse program)
 
 Caused by:
