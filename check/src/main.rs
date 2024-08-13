@@ -39,7 +39,7 @@ enum Apis {
     New {
         /// Project name.
         name: PathBuf,
-        /// Create a minimal program.
+        /// Create a minimal contract.
         #[arg(long)]
         minimal: bool,
     },
@@ -108,10 +108,10 @@ pub struct CacheConfig {
     /// Wallet source to use.
     #[command(flatten)]
     auth: AuthOpts,
-    /// Deployed and activated program address to cache.
+    /// Deployed and activated contract address to cache.
     #[arg(long)]
     address: H160,
-    /// Bid, in wei, to place on the desired program to cache
+    /// Bid, in wei, to place on the desired contract to cache
     #[arg(short, long, hide(true))]
     bid: Option<u64>,
 }
@@ -123,7 +123,7 @@ pub struct ActivateConfig {
     /// Wallet source to use.
     #[command(flatten)]
     auth: AuthOpts,
-    /// Deployed Stylus program address to activate.
+    /// Deployed Stylus contract address to activate.
     #[arg(long)]
     address: H160,
     /// Percent to bump the estimated activation data fee by. Default of 20%
@@ -138,9 +138,9 @@ pub struct CheckConfig {
     /// The WASM to check (defaults to any found in the current directory).
     #[arg(long)]
     wasm_file: Option<PathBuf>,
-    /// Where to deploy and activate the program (defaults to a random address).
+    /// Where to deploy and activate the contract (defaults to a random address).
     #[arg(long)]
-    program_address: Option<H160>,
+    contract_address: Option<H160>,
     /// If specified, will not run the command in a reproducible docker container. Useful for local
     /// builds, but at the risk of not having a reproducible contract for verification purposes.
     #[arg(long)]
@@ -242,8 +242,8 @@ impl fmt::Display for CheckConfig {
                 Some(path) => format!("--wasm-file={}", path.display()),
                 None => "".to_string(),
             },
-            match &self.program_address {
-                Some(addr) => format!("--program-address={:?}", addr),
+            match &self.contract_address {
+                Some(addr) => format!("--contract-address={:?}", addr),
                 None => "".to_string(),
             },
             match self.no_verify {
@@ -331,12 +331,12 @@ async fn main_impl(args: Opts) -> Result<()> {
         }
         Apis::Activate(config) => {
             run!(
-                activate::activate_program(&config).await,
+                activate::activate_contract(&config).await,
                 "stylus activate failed"
             );
         }
         Apis::Cache(config) => {
-            run!(cache::cache_program(&config).await, "stylus cache failed");
+            run!(cache::cache_contract(&config).await, "stylus cache failed");
         }
         Apis::Check(config) => {
             if config.no_verify {
