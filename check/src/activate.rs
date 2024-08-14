@@ -54,16 +54,6 @@ sol! {
 
 type SignerClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 
-/// Deploys a stylus program, activating if needed.
-pub async fn activate(cfg: ActivateConfig) -> Result<()> {
-    greyln!("@@@ activate");
-    let contract = cfg.address;
-    let program: Address = contract.to_fixed_bytes().into();
-    let data = ArbWasm::activateProgramCall { program }.abi_encode();
-    write_tx_data(TxKind::Activation, &data)?;
-    Ok(())
-}
-
 fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> eyre::Result<()> {
     let file_name = format!("{tx_kind}_tx_data");
     let mut path = PathBuf::new();
@@ -133,6 +123,9 @@ pub async fn activate_contract(cfg: &ActivateConfig) -> Result<()> {
                 hex::encode(cfg.address),
                 hex::encode(receipt.transaction_hash).debug_lavender()
             );
+            let program: Address = cfg.address.to_fixed_bytes().into();
+            let data = ArbWasm::activateProgramCall { program }.abi_encode();
+            wrtie_tx_data(TxKind::Activation, &data)?;
         }
         None => {
             bail!(
