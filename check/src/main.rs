@@ -60,7 +60,7 @@ enum Apis {
     },
     /// Activate an already deployed contract.
     #[command(alias = "a")]
-    Activate(ActivateConfig),
+    Activate(ActivateWithoutPrivateKeyConfig),
     /// Cache a contract using the Stylus CacheManager for Arbitrum chains.
     Cache(CacheConfig),
     /// Check a contract.
@@ -135,6 +135,13 @@ pub struct ActivateConfig {
     /// Percent to bump the estimated activation data fee by. Default of 20%
     #[arg(long, default_value = "20")]
     data_fee_bump_percent: u64,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct ActivateWithoutPrivateKeyConfig {
+    /// Deployed Stylus contract address to activate.
+    #[arg(long)]
+    address: H160,
 }
 
 #[derive(Args, Clone, Debug)]
@@ -339,10 +346,7 @@ async fn main_impl(args: Opts) -> Result<()> {
             run!(export_abi::export_abi(output, json), "failed to export abi");
         }
         Apis::Activate(config) => {
-            run!(
-                activate::activate_contract(&config).await,
-                "stylus activate failed"
-            );
+            run!(activate::activate(&config).await, "stylus activate failed");
         }
         Apis::Cache(config) => {
             run!(cache::cache_contract(&config).await, "stylus cache failed");
