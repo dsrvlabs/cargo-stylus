@@ -8,21 +8,21 @@ use lazy_static::lazy_static;
 /// EOF prefix used in Stylus compressed WASMs on-chain
 pub const EOF_PREFIX_NO_DICT: &str = "EFF00000";
 
-/// Maximum brotli compression level used for Stylus programs.
+/// Maximum brotli compression level used for Stylus contracts.
 pub const BROTLI_COMPRESSION_LEVEL: u32 = 11;
 
 lazy_static! {
     /// Address of the ArbWasm precompile.
     pub static ref ARB_WASM_H160: H160 = H160(*ARB_WASM_ADDRESS.0);
-    /// Address of the Stylus program cache manager.
-    pub static ref CACHE_MANAGER_H160: H160 = H160(*CACHE_MANAGER_ADDRESS.0);
+    /// Address of the ArbWasmCache precompile.
+    pub static ref ARB_WASM_CACHE_H160: H160 = H160(*ARB_WASM_CACHE_ADDRESS.0);
 }
 
 /// Address of the ArbWasm precompile.
 pub const ARB_WASM_ADDRESS: Address = address!("0000000000000000000000000000000000000071");
 
-/// Address of the Stylus program cache manager for Arbitrum chains.
-pub const CACHE_MANAGER_ADDRESS: Address = address!("d1bbd579988f394a26d6ec16e77b3fa8a5e8fcee");
+/// Address of the ArbWasmCache precompile.
+pub const ARB_WASM_CACHE_ADDRESS: Address = address!("0000000000000000000000000000000000000072");
 
 /// Target for compiled WASM folder in a Rust project
 pub const RUST_TARGET: &str = "wasm32-unknown-unknown";
@@ -36,3 +36,10 @@ pub const GITHUB_TEMPLATE_REPO_MINIMAL: &str =
 
 /// One ether in wei.
 pub const ONE_ETH: U256 = U256([1000000000000000000, 0, 0, 0]);
+
+/// Name of the custom wasm section that is added to contracts deployed with cargo stylus
+/// to include a hash of the Rust project's source files for reproducible verification of builds.
+pub const PROJECT_HASH_SECTION_NAME: &str = "project_hash";
+
+/// Name of the toolchain file used to specify the Rust toolchain version for a project.
+pub const TOOLCHAIN_FILE_NAME: &str = "rust-toolchain.toml";
