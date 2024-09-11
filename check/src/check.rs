@@ -78,7 +78,7 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     tx_code.extend(code_len);
     tx_code.push(0x80); // DUP1
     tx_code.push(0x60); // PUSH1
-    tx_code.push(42 + 1 + 32); // prelude + version + hash
+    tx_code.push(42 + 1); // prelude + version
     tx_code.push(0x60); // PUSH1
     tx_code.push(0x00);
     tx_code.push(0x39); // CODECOPY
@@ -86,7 +86,6 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     tx_code.push(0x00);
     tx_code.push(0xf3); // RETURN
     tx_code.push(0x00); // version
-    tx_code.extend(project_hash);
     tx_code.extend(code_copied);
     write_tx_data(TxKind::Deployment, &tx_code)?; // 트랜잭션 데이터를 작성하여 파일로 저장합니다.
 
