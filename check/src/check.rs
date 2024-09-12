@@ -1,7 +1,7 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // 라이선스 정보는 https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md에서 확인할 수 있습니다.
 
-use crate::deploy::TxKind;
+use crate::deploy::{contract_deployment_calldata, TxKind};
 use crate::{
     check::ArbWasm::ArbWasmErrors,
     constants::{ARB_WASM_H160, ONE_ETH, TOOLCHAIN_FILE_NAME},
@@ -70,24 +70,8 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?; // WASM 파일을 압축합니다.
 
-    let code_copied = code.clone();
-    let mut code_len = [0u8; 32];
-    ethers::prelude::U256::from(code_copied.len()).to_big_endian(&mut code_len);
-    let mut tx_code: Vec<u8> = vec![];
-    tx_code.push(0x7f); // PUSH32
-    tx_code.extend(code_len);
-    tx_code.push(0x80); // DUP1
-    tx_code.push(0x60); // PUSH1
-    tx_code.push(42 + 1); // prelude + version
-    tx_code.push(0x60); // PUSH1
-    tx_code.push(0x00);
-    tx_code.push(0x39); // CODECOPY
-    tx_code.push(0x60); // PUSH1
-    tx_code.push(0x00);
-    tx_code.push(0xf3); // RETURN
-    tx_code.push(0x00); // version
-    tx_code.extend(code_copied);
-    write_tx_data(TxKind::Deployment, &tx_code)?; // 트랜잭션 데이터를 작성하여 파일로 저장합니다.
+    let init_code = contract_deployment_calldata(code.as_slice());
+    write_tx_data(TxKind::Deployment, &init_code)?; // 트랜잭션 데이터를 작성하여 파일로 저장합니다.
 
     greyln!("contract size: {}", format_file_size(code.len(), 16, 24)); // 계약 크기를 출력합니다.
 
