@@ -1,6 +1,7 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
+use crate::deploy::contract_deployment_calldata;
 use crate::util::{color::Color, sys, text};
 use crate::{
     check::ArbWasm::ArbWasmErrors,
@@ -21,7 +22,10 @@ use ethers::{
 };
 use eyre::{bail, eyre, ErrReport, Result, WrapErr};
 use serde_json::Value;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
+use std::{fmt, fs};
 
 sol! {
     interface ArbWasm {
@@ -41,6 +45,24 @@ sol! {
         error ProgramUpToDate();
         error ProgramKeepaliveTooSoon(uint64 ageInSeconds);
         error ProgramInsufficientValue(uint256 have, uint256 want);
+    }
+}
+
+pub enum TxKind {
+    Deployment,
+    Activation,
+}
+
+impl fmt::Display for TxKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                TxKind::Deployment => "deployment",
+                TxKind::Activation => "activation",
+            }
+        )
     }
 }
 
@@ -67,6 +89,9 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     // add_project_hash_to_wasm_file(wasm, project_hash)
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
+
+    let init_code = contract_deployment_calldata(code.as_slice());
+    write_tx_data(TxKind::Deployment, &init_code)?;
 
     greyln!("contract size: {}", format_file_size(code.len(), 16, 24));
 
@@ -260,4 +285,38 @@ pub async fn check_activate(code: Bytes, address: H160, provider: &Provider<Http
         ArbWasm::activateProgramCall::abi_decode_returns(&outs, true)?;
 
     Ok(dataFee)
+}
+
+pub fn write_tx_data(tx_kind: TxKind, data: &[u8]) -> Result<()> {
+    let file_name = format!("{}_tx_data", tx_kind);
+    let mut path = PathBuf::from("./output");
+
+    if !path.exists() {
+        fs::create_dir_all(&path).map_err(|e| eyre!("could not create output directory: {e}"))?;
+    }
+
+    let full_path = path.join(&file_name);
+    let path_str = full_path.to_string_lossy();
+    println!(
+        "Writing {} tx data bytes of size {} to path {}",
+        tx_kind,
+        data.len(),
+        path_str.grey(),
+    );
+
+    let mut file = File::create(&full_path).map_err(|e| {
+        eyre!(
+            "could not create file to write tx data to path {}: {e}",
+            path_str
+        )
+    })?;
+
+    file.write_all(data).map_err(|e| {
+        eyre!(
+            "could not write tx data as bytes to file at path {}: {e}",
+            path_str
+        )
+    })?;
+
+    Ok(())
 }

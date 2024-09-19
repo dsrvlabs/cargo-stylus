@@ -1,7 +1,7 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
-use alloy_primitives::TxHash;
+use alloy_primitives::{Address, TxHash};
 use clap::{ArgGroup, Args, CommandFactory, Parser, Subcommand};
 use constants::DEFAULT_ENDPOINT;
 use ethers::types::H160;
@@ -17,6 +17,10 @@ use util::{color::Color, sys};
 use std::{env, os::unix::process::CommandExt};
 
 // Conditional import for Windows
+use crate::activate::ArbWasm;
+use crate::check::{write_tx_data, TxKind};
+use crate::macros::greyln;
+use alloy_sol_types::SolCall;
 #[cfg(windows)]
 use std::env;
 
@@ -77,6 +81,8 @@ enum Apis {
     /// Activate an already deployed contract.
     #[command(visible_alias = "a")]
     Activate(ActivateConfig),
+    /// Generate Activation Tx.
+    ActivateTx(ActivateTxConfig),
     #[command(subcommand)]
     /// Cache a contract using the Stylus CacheManager for Arbitrum chains.
     Cache(Cache),
@@ -178,6 +184,8 @@ pub struct ActivateConfig {
     /// Wallet source to use.
     #[command(flatten)]
     auth: AuthOpts,
+    #[arg(long)]
+    no_activate: bool,
     /// Deployed Stylus contract address to activate.
     #[arg(long)]
     address: H160,
@@ -187,6 +195,13 @@ pub struct ActivateConfig {
     /// Whether or not to just estimate gas without sending a tx.
     #[arg(long)]
     estimate_gas: bool,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct ActivateTxConfig {
+    /// Deployed Stylus contract address to activate.
+    #[arg(long)]
+    address: H160,
 }
 
 #[derive(Args, Clone, Debug)]
@@ -453,6 +468,12 @@ async fn main_impl(args: Opts) -> Result<()> {
             run!(
                 activate::activate_contract(&config).await,
                 "stylus activate failed"
+            );
+        }
+        Apis::ActivateTx(config) => {
+            run!(
+                activate::activate_tx(&config).await,
+                "stylus activate tx failed"
             );
         }
         Apis::Cgen { input, out_dir } => {

@@ -12,12 +12,13 @@ use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::types::{Eip1559TransactionRequest, U256};
 use ethers::utils::format_units;
 use eyre::{bail, Context, Result};
+use std::io::Write;
 
-use crate::check::check_activate;
+use crate::check::{check_activate, write_tx_data, TxKind};
 use crate::constants::ARB_WASM_H160;
 use crate::macros::greyln;
 
-use crate::ActivateConfig;
+use crate::{ActivateConfig, ActivateTxConfig};
 
 sol! {
     interface ArbWasm {
@@ -94,6 +95,13 @@ pub async fn activate_contract(cfg: &ActivateConfig) -> Result<()> {
             );
         }
     }
+    Ok(())
+}
+
+pub async fn activate_tx(cfg: &ActivateTxConfig) -> Result<()> {
+    let contract: Address = cfg.address.to_fixed_bytes().into();
+    let data = ArbWasm::activateProgramCall { program: contract }.abi_encode();
+    write_tx_data(TxKind::Activation, &data)?;
     Ok(())
 }
 
