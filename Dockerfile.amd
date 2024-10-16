@@ -1,0 +1,31 @@
+# 빌드 스테이지
+FROM --platform=linux/amd64 rust:1.80 as builder
+
+# 빌드 인수 정의
+ARG GIT_TAG
+
+# 필수 도구 설치 (Git, curl)
+RUN apt-get update && apt-get install -y git curl
+
+# Cross 설치 (Cargo를 통해 설치)
+RUN cargo install cross
+
+# 소스 코드 클론 및 특정 태그 체크아웃
+RUN git clone https://github.com/dsrvlabs/cargo-stylus.git
+WORKDIR /cargo-stylus
+RUN git checkout ${GIT_TAG}
+
+# 크로스 컴파일 진행 (대상 타겟 지정)
+RUN cross build --release --target x86_64-unknown-linux-gnu
+
+# 최종 이미지 스테이지
+FROM --platform=linux/amd64 rust:1.80
+
+# 빌드된 실행 파일을 최종 이미지로 복사
+COPY --from=builder /cargo-stylus/target/x86_64-unknown-linux-gnu/release/cargo-stylus /usr/local/bin/cargo-stylus
+
+# 컨테이너에서 사용할 작업 디렉토리 설정
+WORKDIR /workspace
+
+# 컨테이너가 실행될 때 기본 명령을 쉘로 유지
+CMD ["/bin/sh"]

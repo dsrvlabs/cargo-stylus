@@ -1,22 +1,64 @@
-version: "0.1"
+version: "3.8"
 services:
-  cargo_stylus_v0.4:
+  # arm_cargo_stylus_v0.4.2:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.arm
+  #     args:
+  #       GIT_TAG: v0.4.2.4
+  #   image: cargo_stylus_v0.4
+  #   container_name: cargo_stylus_v0.4
+  #   platform: linux/arm64
+  #   ports:
+  #     - "8004:8080"
+  #   volumes:
+  #     - ./project:/workspace
+  #   stdin_open: true
+  #   tty: true
+
+  # arm_cargo_stylus_v0.5.1:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.amd
+  #     args:
+  #       GIT_TAG: v0.5.1
+  #   image: cargo_stylus_v0.5.1
+  #   container_name: cargo_stylus_v0.5.1
+  #   platform: linux/arm64
+  #   ports:
+  #     - "8005:8080"
+  #   volumes:
+  #     - ./project:/workspace
+  #   stdin_open: true
+  #   tty: true
+
+  # amd_cargo_stylus_v0.4.2:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.amd
+  #     args:
+  #       GIT_TAG: v0.4.2.4
+  #   image: cargo_stylus_v0.4
+  #   container_name: cargo_stylus_v0.4
+  #   platform: linux/amd64
+  #   ports:
+  #     - "8104:8080"
+  #   volumes:
+  #     - ./project:/workspace
+  #   stdin_open: true
+  #   tty: true
+
+  amd_cargo_stylus_v0.5.1:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.amd
       args:
-        GIT_TAG: v0.4.2.4
-    image: cargo_stylus_v0.4
-    container_name: cargo_stylus_v0.4
+        GIT_TAG: v0.5.1
+    image: cargo_stylus_v0.5.1
+    container_name: cargo_stylus_v0.5.1
     ports:
-      - "8004:8080"
-  cargo_stylus_v0.5:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        GIT_TAG: v0.5.0
-    image: cargo_stylus_v0.5
-    container_name: cargo_stylus_v0.5
-    ports:
-      - "8005:8080"
+      - "8105:8080"
+    volumes:
+      - ./project:/workspace
+    stdin_open: true
+    tty: true

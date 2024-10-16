@@ -1,0 +1,30 @@
+# 빌드 스테이지
+FROM --platform=linux/arm64 rust:1.80 as builder
+
+# 빌드 인수 정의
+ARG GIT_TAG
+
+RUN apt-get update && apt-get install -y git
+
+# Rust 타겟 추가 (M1 ARM에 맞는 타겟 설정)
+RUN rustup target add aarch64-unknown-linux-gnu
+
+# 소스 코드 클론 및 특정 태그 체크아웃
+RUN git clone https://github.com/dsrvlabs/cargo-stylus.git
+WORKDIR /cargo-stylus
+RUN git checkout ${GIT_TAG}
+
+# 빌드 진행
+RUN cargo build --release --manifest-path main/Cargo.toml --target aarch64-unknown-linux-gnu
+
+# 최종 이미지 스테이지
+FROM --platform=linux/arm64 rust:1.80
+
+# 빌드된 실행 파일을 최종 이미지로 복사
+COPY --from=builder /cargo-stylus/target/aarch64-unknown-linux-gnu/release/cargo-stylus /usr/local/bin/cargo-stylus
+
+# 컨테이너에서 사용할 작업 디렉토리 설정
+WORKDIR /workspace
+
+# 컨테이너가 실행될 때 기본 명령을 쉘로 유지 (필요에 따라 변경)
+CMD ["/bin/sh"]
