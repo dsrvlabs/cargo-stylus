@@ -55,6 +55,7 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
 
     let verbose = cfg.common_cfg.verbose;
     let (wasm, project_hash) = cfg.build_wasm().wrap_err("failed to build wasm")?;
+    println!("project_hash: {:?}", project_hash);
 
     if verbose {
         greyln!("reading wasm file at {}", wasm.to_string_lossy().lavender());
@@ -68,7 +69,7 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     // add_project_hash_to_wasm_file(wasm, project_hash)
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
-        
+
     println!("wasm_file_bytes: {:?}", wasm_file_bytes);
     println!("code: {:?}", code);
 
