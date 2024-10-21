@@ -1038,6 +1038,7 @@ dependencies = [
  "rustc-host",
  "serde",
  "serde_json",
+ "sha2",
  "sneks",
  "sys-info",
  "tempfile",
