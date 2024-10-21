@@ -1,5 +1,6 @@
 # 빌드 스테이지
 FROM --platform=linux/arm64 rust:1.80 as builder
+RUN uname -m aarch64
 
 # 빌드 인수 정의
 ARG GIT_TAG
@@ -8,20 +9,39 @@ RUN apt-get update && apt-get install -y git
 
 # Rust 타겟 추가 (M1 ARM에 맞는 타겟 설정)
 RUN rustup target add aarch64-unknown-linux-gnu
+RUN uname -m
+
+# WASM 타겟 추가
+RUN rustup target add wasm32-unknown-unknown
 
 # 소스 코드 클론 및 특정 태그 체크아웃
 RUN git clone https://github.com/dsrvlabs/cargo-stylus.git
 WORKDIR /cargo-stylus
 RUN git checkout ${GIT_TAG}
 
-# 빌드 진행
+# 빌드 진행 (디버그 정보 제외)
+ENV RUSTFLAGS="-C debuginfo=0"
+RUN cargo fetch
 RUN cargo build --release --manifest-path main/Cargo.toml --target aarch64-unknown-linux-gnu
+RUN uname -m
 
 # 최종 이미지 스테이지
 FROM --platform=linux/arm64 rust:1.80
 
+# 빌드 스테이지의 rustup과 cargo 설치 복사
+COPY --from=builder /usr/local/rustup /usr/local/rustup
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+RUN uname -m
+
+# 환경 변수 설정
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=$CARGO_HOME/bin:$RUSTUP_HOME/bin:$PATH
+RUN uname -m
+
 # 빌드된 실행 파일을 최종 이미지로 복사
 COPY --from=builder /cargo-stylus/target/aarch64-unknown-linux-gnu/release/cargo-stylus /usr/local/bin/cargo-stylus
+RUN uname -m
 
 # 컨테이너에서 사용할 작업 디렉토리 설정
 WORKDIR /workspace
