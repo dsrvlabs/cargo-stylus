@@ -311,16 +311,23 @@ fn expand_glob_patterns(patterns: Vec<String>) -> Result<Vec<PathBuf>> {
 pub fn compress_wasm(wasm: &PathBuf, project_hash: [u8; 32]) -> Result<(Vec<u8>, Vec<u8>)> {
     let wasm =
         fs::read(wasm).wrap_err_with(|| eyre!("failed to read Wasm {}", wasm.to_string_lossy()))?;
+    println!("After reading wasm file, checksum: {:x}", Sha256::digest(&wasm));
+
 
     let wasm = add_project_hash_to_wasm_file(&wasm, project_hash)
         .wrap_err("failed to add project hash to wasm file as custom section")?;
+    println!("After adding project hash to wasm file, checksum: {:x}", Sha256::digest(&wasm));
 
     let wasm =
         strip_user_metadata(&wasm).wrap_err("failed to strip user metadata from wasm file")?;
+    println!("After stripping user metadata from wasm file, checksum: {:x}", Sha256::digest(&wasm));
 
     let wasm = wasmer::wat2wasm(&wasm).wrap_err("failed to parse Wasm")?;
+    println!("After parsing wasm file, checksum: {:x}", Sha256::digest(&wasm));
 
     let mut compressor = BrotliEncoder::new(&*wasm, BROTLI_COMPRESSION_LEVEL);
+    println!("After compression, checksum: {:x}", Sha256::digest(&compressed_bytes));
+
     let mut compressed_bytes = vec![];
     compressor
         .read_to_end(&mut compressed_bytes)
@@ -328,6 +335,8 @@ pub fn compress_wasm(wasm: &PathBuf, project_hash: [u8; 32]) -> Result<(Vec<u8>,
 
     let mut contract_code = hex::decode(EOF_PREFIX_NO_DICT).unwrap();
     contract_code.extend(compressed_bytes);
+    println!("After extending contract code, checksum: {:x}", Sha256::digest(&contract_code));
+
 
     Ok((wasm.to_vec(), contract_code))
 }
