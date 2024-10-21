@@ -310,6 +310,7 @@ fn expand_glob_patterns(patterns: Vec<String>) -> Result<Vec<PathBuf>> {
 }
 
 pub fn compress_wasm(wasm_path: &PathBuf, project_hash: [u8; 32]) -> Result<(Vec<u8>, Vec<u8>)> {
+    println!("Compressing WASM file: {}", wasm_path.to_string_lossy());
     // 1. WASM 파일 읽기
     let wasm = fs::read(wasm_path)
         .wrap_err_with(|| eyre!("failed to read Wasm {}", wasm_path.to_string_lossy()))?;
