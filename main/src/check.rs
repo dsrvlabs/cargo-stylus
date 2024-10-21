@@ -68,6 +68,8 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
     // add_project_hash_to_wasm_file(wasm, project_hash)
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
+    println("wasm_file_bytes: {:?}", wasm_file_bytes);
+    println("code: {:?}", code);
 
     if cfg.output.is_some() {
         let init_code = contract_deployment_calldata(code.as_slice());
