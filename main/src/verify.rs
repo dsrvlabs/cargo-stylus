@@ -69,6 +69,19 @@ pub async fn verify(cfg: VerifyConfig) -> eyre::Result<()> {
         project::hash_files(cfg.common_cfg.source_files_for_project_hash, build_cfg)?;
     let (_, init_code) = project::compress_wasm(&wasm_file, project_hash)?;
     let deployment_data = deploy::contract_deployment_calldata(&init_code);
+
+    // deployment_data와 result.input 데이터를 콘솔에 출력
+    println!(
+        "Deployment Data: {}
+    ",
+        hex::encode(&deployment_data)
+    );
+    println!(
+        "Result Input: {}
+    ",
+        hex::encode(&result.input)
+    );
+    
     if deployment_data == *result.input {
         println!("Verified - contract matches local project's file hashes");
     } else {

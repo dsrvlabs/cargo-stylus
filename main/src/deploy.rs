@@ -117,6 +117,8 @@ impl DeployConfig {
     ) -> Result<H160> {
         let init_code = contract_deployment_calldata(code);
 
+        println!("init_code: {}", hex::encode(&init_code));
+
         let tx = Eip1559TransactionRequest::new()
             .from(sender)
             .data(init_code);
