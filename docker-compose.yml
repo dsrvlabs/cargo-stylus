@@ -8,7 +8,7 @@ services:
         GIT_TAG: v0.5.1
     image: amd_cargo_stylus_v0.5.1
     container_name: amd_cargo_stylus_v0.5.1
-    platform: linux/arm64
+    platform: linux/amd64
     ports:
       - "8151:8080"
     volumes:
@@ -34,7 +34,7 @@ services:
         GIT_TAG: v0.5.3
     image: amd_cargo_stylus_v0.5.3
     container_name: amd_cargo_stylus_v0.5.3
-    platform: linux/arm64
+    platform: linux/amd64
     ports:
       - "8153:8080"
     volumes:
