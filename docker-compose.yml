@@ -80,7 +80,7 @@ services:
           cpus: "1.0"
           memory: "1G"
     depends_on:
-      - amd_cargo_stylus_v0.5.1
+      - amd_cargo_stylus_v0.5.2
 
   amd_cargo_stylus_v0.5.4:
     build:
