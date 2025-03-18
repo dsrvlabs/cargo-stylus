@@ -3,34 +3,18 @@
 cargo fmt
 cargo clippy --package cargo-stylus --package cargo-stylus-example
 
-# v0.5.1 설치
-git checkout v0.5.1-welldone
-cargo install --path main --root ~/.cargo/v0.5.1-welldone
+# 버전 목록 정의
+VERSIONS=("v0.5.1" "v0.5.2" "v0.5.3" "v0.5.4" "v0.5.5" "v0.5.6" "v0.5.7")
 
-# v0.5.2 설치
-git checkout v0.5.2-welldone
-cargo install --path main --root ~/.cargo/v0.5.2-welldone
-
-# v0.5.3 설치
-git checkout v0.5.3-welldone
-cargo install --path main --root ~/.cargo/v0.5.3-welldone
-
-# v0.5.4 설치
-git checkout v0.5.4-welldone
-cargo install --path main --root ~/.cargo/v0.5.4-welldone
-
-# v0.5.5 설치
-git checkout v0.5.5-welldone
-cargo install --path main --root ~/.cargo/v0.5.5-welldone
-
-# v0.5.6 설치
-git checkout v0.5.6-welldone
-cargo install --path main --root ~/.cargo/v0.5.6-welldone
+# 각 버전 설치
+for VERSION in "${VERSIONS[@]}"; do
+  echo "Installing $VERSION-welldone..."
+  git checkout "$VERSION-welldone"
+  cargo install --path main --root ~/.cargo/"$VERSION-welldone"
+done
 
 # 설치된 경로 출력
-echo "v0.5.1-welldone: ~/.cargo/v0.5.1-welldone/bin/cargo-stylus"
-echo "v0.5.2-welldone: ~/.cargo/v0.5.2-welldone/bin/cargo-stylus"
-echo "v0.5.3-welldone: ~/.cargo/v0.5.3-welldone/bin/cargo-stylus"
-echo "v0.5.4-welldone: ~/.cargo/v0.5.4-welldone/bin/cargo-stylus"
-echo "v0.5.5-welldone: ~/.cargo/v0.5.5-welldone/bin/cargo-stylus"
-echo "v0.5.6-welldone: ~/.cargo/v0.5.6-welldone/bin/cargo-stylus"
+echo "설치된 경로:"
+for VERSION in "${VERSIONS[@]}"; do
+  echo "$VERSION-welldone: ~/.cargo/$VERSION-welldone/bin/cargo-stylus"
+done
