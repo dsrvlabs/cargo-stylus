@@ -6,10 +6,14 @@ use crate::constants::ARB_WASM_ADDRESS;
 use crate::macros::greyln;
 use crate::util::color::{Color, DebugColor};
 use crate::ActivateConfig;
+use crate::util::sys;
 use alloy::primitives::utils::format_units;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::sol;
 use eyre::Result;
+use alloy::sol_types::SolCall;
+
+use crate::ActivationTxConfig;
 
 sol! {
     #[sol(rpc)]
@@ -66,5 +70,16 @@ pub async fn activate_contract(cfg: &ActivateConfig) -> Result<()> {
         hex::encode(cfg.address),
         hex::encode(receipt.transaction_hash).debug_lavender()
     );
+    Ok(())
+}
+
+pub async fn write_activation_tx(cfg: &ActivationTxConfig) -> Result<()> {
+    let contract = cfg.address;
+    let data = ArbWasm::activateProgramCall { program: contract }.abi_encode();
+    let mut out = sys::file_or_stdout(cfg.output.clone())?;
+    out.write_all(hex::encode(&data).as_bytes())?;
+    if cfg.output.is_none() {
+        println!();
+    }
     Ok(())
 }
