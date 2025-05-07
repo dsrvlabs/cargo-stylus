@@ -232,7 +232,7 @@ services:
     container_name: amd_cargo_stylus_v0.5.10
     platform: linux/amd64
     ports:
-      - "81510:8080"
+      - "11510:8080"
     volumes:
       - ./project:/workspace
     environment:
