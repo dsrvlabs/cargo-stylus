@@ -281,7 +281,7 @@ services:
   amd_cargo_stylus_v0.5.12:
     build:
       context: .
-      dockerfile: Dockerfile.amd
+      dockerfile: Dockerfile.amd.1.81
       args:
         GIT_TAG: v0.5.12
     image: amd_cargo_stylus_v0.5.12
