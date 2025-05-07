@@ -232,7 +232,7 @@ services:
     container_name: amd_cargo_stylus_v0.5.10
     platform: linux/amd64
     ports:
-      - "81510:8080"
+      - "11510:8080"
     volumes:
       - ./project:/workspace
     environment:
@@ -260,7 +260,7 @@ services:
     container_name: amd_cargo_stylus_v0.5.11
     platform: linux/amd64
     ports:
-      - "81511:8080"
+      - "11511:8080"
     volumes:
       - ./project:/workspace
     environment:
@@ -288,7 +288,7 @@ services:
     container_name: amd_cargo_stylus_v0.5.12
     platform: linux/amd64
     ports:
-      - "81512:8080"
+      - "11512:8080"
     volumes:
       - ./project:/workspace
     environment:
