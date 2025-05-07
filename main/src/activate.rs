@@ -6,8 +6,8 @@ use crate::constants::ARB_WASM_H160;
 use crate::macros::greyln;
 use crate::util::color::{Color, DebugColor};
 use crate::util::sys;
-use crate::ActivateConfig;
 use alloy_primitives::Address;
+use alloy_primitives::U256;
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
 use ethers::middleware::{Middleware, SignerMiddleware};
@@ -16,6 +16,8 @@ use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::types::Eip1559TransactionRequest;
 use ethers::utils::format_units;
 use eyre::{bail, Context, Result};
+
+use crate::{ActivateConfig, ActivationTxConfig};
 
 sol! {
     interface ArbWasm {
@@ -82,4 +84,20 @@ pub async fn activate_contract(cfg: &ActivateConfig) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub async fn write_activation_tx(cfg: &ActivationTxConfig) -> Result<()> {
+    let contract: Address = cfg.address.to_fixed_bytes().into();
+    let data = ArbWasm::activateProgramCall { program: contract }.abi_encode();
+    let mut out = sys::file_or_stdout(cfg.output.clone())?;
+    out.write_all(hex::encode(&data).as_bytes())?;
+    if cfg.output.is_none() {
+        println!();
+    }
+    Ok(())
+}
+
+fn bump_data_fee(fee: U256, pct: u64) -> U256 {
+    let num = 100 + pct;
+    fee * U256::from(num) / U256::from(100)
 }

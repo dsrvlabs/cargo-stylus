@@ -1,6 +1,7 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
+use crate::deploy::contract_deployment_calldata;
 use crate::{
     check::ArbWasm::ArbWasmErrors,
     constants::{ARB_WASM_H160, ONE_ETH, TOOLCHAIN_FILE_NAME},
@@ -64,6 +65,12 @@ pub async fn check(cfg: &CheckConfig) -> Result<ContractCheck> {
 
     let (wasm_file_bytes, code) =
         project::compress_wasm(&wasm, project_hash).wrap_err("failed to compress WASM")?;
+
+    if cfg.output.is_some() {
+        let init_code = contract_deployment_calldata(code.as_slice());
+        let mut out = sys::file_or_stdout(cfg.output.clone())?;
+        out.write_all(hex::encode(&init_code).as_bytes())?;
+    }
 
     greyln!("contract size: {}", format_file_size(code.len(), 16, 24));
 
