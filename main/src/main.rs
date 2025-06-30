@@ -241,9 +241,9 @@ pub struct CheckConfig {
     /// Where to deploy and activate the contract (defaults to a random address).
     #[arg(long)]
     contract_address: Option<Address>,
-     /// The deployment transaction hex data file.
-     #[arg(long)]
-     output: Option<PathBuf>,
+    /// The deployment transaction hex data file.
+    #[arg(long)]
+    output: Option<PathBuf>,
 }
 
 #[derive(Args, Clone, Debug)]

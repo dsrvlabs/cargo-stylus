@@ -7,7 +7,10 @@ use crate::{
     constants::ARB_WASM_ADDRESS,
     macros::*,
     project,
-    util::{color::{Color, GREY, LAVENDER, MINT, PINK, YELLOW}, sys},
+    util::{
+        color::{Color, GREY, LAVENDER, MINT, PINK, YELLOW},
+        sys,
+    },
     CheckConfig, DataFeeOpts,
 };
 use alloy::{

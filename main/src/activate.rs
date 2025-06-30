@@ -5,13 +5,13 @@ use crate::check::check_activate;
 use crate::constants::ARB_WASM_ADDRESS;
 use crate::macros::greyln;
 use crate::util::color::{Color, DebugColor};
-use crate::ActivateConfig;
 use crate::util::sys;
+use crate::ActivateConfig;
 use alloy::primitives::utils::format_units;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::sol;
-use eyre::Result;
 use alloy::sol_types::SolCall;
+use eyre::Result;
 
 use crate::ActivationTxConfig;
 
