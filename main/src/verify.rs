@@ -60,6 +60,7 @@ pub async fn verify(cfg: VerifyConfig) -> Result<()> {
         },
         wasm_file: None,
         contract_address: None,
+        output: None,
     };
     let contract_check = check::check(&check_cfg)
         .await
