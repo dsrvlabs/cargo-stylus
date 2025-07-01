@@ -309,7 +309,7 @@ services:
   amd_cargo_stylus_v0.6.0:
     build:
       context: .
-      dockerfile: Dockerfile.amd.1.81
+      dockerfile: Dockerfile.amd.1.82
       args:
         GIT_TAG: v0.6.0
     image: amd_cargo_stylus_v0.6.0
@@ -337,7 +337,7 @@ services:
   amd_cargo_stylus_v0.6.1:
     build:
       context: .
-      dockerfile: Dockerfile.amd.1.81
+      dockerfile: Dockerfile.amd.1.82
       args:
         GIT_TAG: v0.6.1
     image: amd_cargo_stylus_v0.6.1
