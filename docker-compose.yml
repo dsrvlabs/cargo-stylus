@@ -331,8 +331,8 @@ services:
         reservations:
           cpus: "1.0"
           memory: "1G"
-      depends_on:
-        - amd_cargo_stylus_v0.5.12
+    depends_on:
+      - amd_cargo_stylus_v0.5.12
 
   amd_cargo_stylus_v0.6.1:
     build:
@@ -359,5 +359,5 @@ services:
         reservations:
           cpus: "1.0"
           memory: "1G"
-      depends_on:
-        - amd_cargo_stylus_v0.6.0
+    depends_on:
+      - amd_cargo_stylus_v0.6.0
