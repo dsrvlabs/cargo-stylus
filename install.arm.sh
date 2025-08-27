@@ -13,8 +13,12 @@ EDITION2024_VERSIONS=("v0.6.2" "v0.6.3")
 if command -v rustup >/dev/null 2>&1; then
   echo "Installing nightly toolchain for edition2024 support..."
   rustup toolchain install nightly
+  # 현재 기본 툴체인 저장
+  ORIGINAL_TOOLCHAIN=$(rustup show active-toolchain | cut -d' ' -f1)
+  echo "Current toolchain: $ORIGINAL_TOOLCHAIN"
 else
   echo "Warning: rustup not found. Some versions may fail to install."
+  exit 1
 fi
 
 # 각 버전 설치
@@ -25,11 +29,21 @@ for VERSION in "${VERSIONS[@]}"; do
   # edition2024가 필요한 버전인지 확인
   if [[ " ${EDITION2024_VERSIONS[@]} " =~ " ${VERSION} " ]]; then
     echo "Using nightly toolchain for $VERSION (requires edition2024)..."
-    RUSTUP_TOOLCHAIN=nightly cargo install --path main --root ~/.cargo/"$VERSION-welldone"
+    # 임시로 nightly를 기본 툴체인으로 설정
+    rustup default nightly
+    # 의존성 fetch 및 빌드
+    cargo fetch --manifest-path main/Cargo.toml
+    cargo install --path main --root ~/.cargo/"$VERSION-welldone"
+    # 원래 툴체인으로 복원
+    rustup default "$ORIGINAL_TOOLCHAIN"
   else
     cargo install --path main --root ~/.cargo/"$VERSION-welldone"
   fi
 done
+
+# 원래 툴체인으로 확실히 복원
+echo "Restoring original toolchain: $ORIGINAL_TOOLCHAIN"
+rustup default "$ORIGINAL_TOOLCHAIN"
 
 # 설치된 경로 출력
 echo "설치된 경로:"
