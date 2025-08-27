@@ -4,7 +4,7 @@ cargo fmt
 cargo clippy --package cargo-stylus --package cargo-stylus-example
 
 # 버전 목록 정의
-VERSIONS=("v0.5.1" "v0.5.2" "v0.5.3" "v0.5.4" "v0.5.5" "v0.5.6" "v0.5.7" "v0.5.8" "v0.5.10" "v0.5.11" "v0.5.12" "v0.6.0" "v0.6.1" "v0.6.2")
+VERSIONS=("v0.5.1" "v0.5.2" "v0.5.3" "v0.5.4" "v0.5.5" "v0.5.6" "v0.5.7" "v0.5.8" "v0.5.10" "v0.5.11" "v0.5.12" "v0.6.0" "v0.6.1" "v0.6.2" "v0.6.3")
 
 # 각 버전 설치
 for VERSION in "${VERSIONS[@]}"; do
