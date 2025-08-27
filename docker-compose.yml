@@ -362,58 +362,58 @@ services:
     depends_on:
       - amd_cargo_stylus_v0.6.0
 
-    amd_cargo_stylus_v0.6.2:
-      build:
-        context: .
-        dockerfile: Dockerfile.amd.1.82
-        args:
-          GIT_TAG: v0.6.2
-      image: amd_cargo_stylus_v0.6.2
-      container_name: amd_cargo_stylus_v0.6.2
-      platform: linux/amd64
-      ports:
-        - "11602:8080"
-      volumes:
-        - ./project:/workspace
-      environment:
-        - CARGO_TARGET_DIR=/cargo-target
-      stdin_open: true
-      tty: true
-      deploy:
-        resources:
-          limits:
-            cpus: "2.0"
-            memory: "2G"
-          reservations:
-            cpus: "1.0"
-            memory: "1G"
-      depends_on:
-        - amd_cargo_stylus_v0.6.1
+  amd_cargo_stylus_v0.6.2:
+    build:
+      context: .
+      dockerfile: Dockerfile.amd.1.82
+      args:
+        GIT_TAG: v0.6.2
+    image: amd_cargo_stylus_v0.6.2
+    container_name: amd_cargo_stylus_v0.6.2
+    platform: linux/amd64
+    ports:
+      - "11602:8080"
+    volumes:
+      - ./project:/workspace
+    environment:
+      - CARGO_TARGET_DIR=/cargo-target
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "2G"
+        reservations:
+          cpus: "1.0"
+          memory: "1G"
+    depends_on:
+      - amd_cargo_stylus_v0.6.1
 
-    amd_cargo_stylus_v0.6.3:
-      build:
-        context: .
-        dockerfile: Dockerfile.amd.1.82
-        args:
-          GIT_TAG: v0.6.3
-      image: amd_cargo_stylus_v0.6.3
-      container_name: amd_cargo_stylus_v0.6.3
-      platform: linux/amd64
-      ports:
-        - "11603:8080"
-      volumes:
-        - ./project:/workspace
-      environment:
-        - CARGO_TARGET_DIR=/cargo-target
-      stdin_open: true
-      tty: true
-      deploy:
-        resources:
-          limits:
-            cpus: "2.0"
-            memory: "2G"
-          reservations:
-            cpus: "1.0"
-            memory: "1G"
-      depends_on:
-        - amd_cargo_stylus_v0.6.2
+  amd_cargo_stylus_v0.6.3:
+    build:
+      context: .
+      dockerfile: Dockerfile.amd.1.82
+      args:
+        GIT_TAG: v0.6.3
+    image: amd_cargo_stylus_v0.6.3
+    container_name: amd_cargo_stylus_v0.6.3
+    platform: linux/amd64
+    ports:
+      - "11603:8080"
+    volumes:
+      - ./project:/workspace
+    environment:
+      - CARGO_TARGET_DIR=/cargo-target
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "2G"
+        reservations:
+          cpus: "1.0"
+          memory: "1G"
+    depends_on:
+      - amd_cargo_stylus_v0.6.2
