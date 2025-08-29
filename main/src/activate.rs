@@ -7,7 +7,7 @@ use crate::macros::greyln;
 use crate::util::color::{Color, DebugColor};
 use crate::util::sys;
 use crate::ActivateConfig;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
 use ethers::middleware::{Middleware, SignerMiddleware};
@@ -17,11 +17,7 @@ use ethers::types::Eip1559TransactionRequest;
 use ethers::utils::format_units;
 use eyre::{bail, Context, Result};
 
-use crate::check::check_activate;
-use crate::constants::ARB_WASM_H160;
-use crate::macros::greyln;
-
-use crate::{ActivateConfig, ActivationTxConfig};
+use crate::{ActivationTxConfig};
 
 sol! {
     interface ArbWasm {

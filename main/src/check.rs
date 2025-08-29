@@ -2,7 +2,6 @@
 // For licensing, see https://github.com/OffchainLabs/cargo-stylus/blob/main/licenses/COPYRIGHT.md
 
 use crate::deploy::contract_deployment_calldata;
-use crate::util::{color::Color, sys, text};
 use crate::{
     check::ArbWasm::ArbWasmErrors,
     constants::{ARB_WASM_H160, ONE_ETH, TOOLCHAIN_FILE_NAME},
