@@ -20,7 +20,7 @@ use alloy::{
 };
 use eyre::{bail, eyre, Context, Result};
 
-pub const STYLUS_DEPLOYER_ADDRESS: Address = address!("cEcba2F1DC234f70Dd89F2041029807F8D03A990");
+pub const STYLUS_DEPLOYER_ADDRESS: Address = address!("6ac4839Bfe169CadBBFbDE3f29bd8459037Bf64e");
 
 sol! {
     #[sol(rpc)]
@@ -95,7 +95,7 @@ pub async fn parse_constructor_args(
         .connect(&cfg.check_config.common_cfg.endpoint)
         .await?;
     let deployer = StylusDeployer::new(Address::ZERO, provider);
-    let deploy_call = deployer.deploy(
+    let deploy_call = deployer.deploy_call(
         bytecode.into(),
         constructor_calldata.into(),
         constructor_value,
